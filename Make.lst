@@ -1,2 +1,3 @@
 PROGS = \
-Succesive_Shortest_Path$(e)
+Succesive_Shortest_Path$(e) \
+Cycle_Canceling$(e)
