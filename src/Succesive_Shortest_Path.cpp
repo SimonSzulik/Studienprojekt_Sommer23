@@ -21,6 +21,26 @@ static GRAPH<int,int> G;
 static edge_map<int> Gcost(G);
 static edge_map<int> Gcap(G);
 
+enum supply_edge  {in, out};
+
+// Get Sum Of In/Out Going Capacities
+int get_node_supply_value(node n, supply_edge s) {
+    edge e = n->first_in_edge();
+    int sum = 0;
+
+    switch(s){
+        case in:
+            forall_in_edges(e, n){
+                sum += Gcap(e);
+            }break;
+        case out:
+            forall_out_edges(e, n){
+                sum += Gcap(e);
+            }break;
+    }
+    return sum;
+}
+
 // Initialize Edge Handler
 void init_edge(GraphWin& gw, edge e){
     Gcap[e] = rand_int(10,20);
@@ -29,6 +49,13 @@ void init_edge(GraphWin& gw, edge e){
     gw.set_slider_value(e,Gcap[e]/100.0,0);
     gw.set_slider_value(e,Gcost[e]/100.0,1);
     gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
+
+    // Set Suply To Node
+    node source_node = source(e);
+    node target_node = target(e);
+
+    gw.set_label(source_node, string("%d",get_node_supply_value(source_node, in) - get_node_supply_value(source_node, out)));
+    gw.set_label(target_node, string("%d",get_node_supply_value(target_node, in) - get_node_supply_value(target_node, out)));
 }
 
 void new_edge_handler(GraphWin& gw, edge e){
@@ -57,6 +84,15 @@ void cap_slider_handler(GraphWin& gw,edge e, double f){
     gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
 }
 
+void end_cap_slider_handler(GraphWin& gw, edge e, double){
+    // Set Suply To Node
+    node source_node = source(e);
+    node target_node = target(e);
+
+    gw.set_label(source_node, string("%d",get_node_supply_value(source_node, in) - get_node_supply_value(source_node, out)));
+    gw.set_label(target_node, string("%d",get_node_supply_value(target_node, in) - get_node_supply_value(target_node, out)));
+}
+
 int main(){
 	// Creating Graph Window
 	GraphWin gw(G,"Successive Shortest Path Algorithm");
@@ -70,6 +106,7 @@ int main(){
     gw.set_edge_slider_handler(cost_slider_handler,1);
     gw.set_edge_slider_color(cost_c,1);
 
+    gw.set_end_edge_slider_handler(end_cap_slider_handler,0);
     gw.set_edge_slider_handler(cap_slider_handler,0);
     gw.set_edge_slider_color(cap_c,0);
 
