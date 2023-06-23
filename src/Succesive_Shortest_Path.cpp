@@ -37,20 +37,7 @@ void new_edge_handler(GraphWin& gw, edge e){
 
 // Initialize Node Handler
 void init_node(GraphWin& gw, node n){
-    // Case For First 2 Nodes
-    switch(G.number_of_nodes()){
-        case 1:
-            gw.set_label(n, "S");
-            gw.set_shape(n, square_node);
-            break;
-        case 2:
-            gw.set_label(n, "T");
-            gw.set_shape(n, square_node);
-            break;
-        default:
-            gw.set_label(n, "0");
-            break;
-    }
+    gw.set_label_type(n, gw_label_type::data_label);
 }
 
 void new_node_handler(GraphWin& gw, node n){
