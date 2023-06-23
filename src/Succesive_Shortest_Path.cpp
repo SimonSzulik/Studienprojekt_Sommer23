@@ -58,7 +58,6 @@ void cap_slider_handler(GraphWin& gw,edge e, double f){
 }
 
 int main(){
-    // Variables
     node v;
 	// Creating Graph Window
 	GraphWin gw(G,"Successive Shortest Path Algorithm");
@@ -76,7 +75,6 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()){
-        // Mass Balance Constraints
         int balance = 0;
         forall_nodes(v,G) {
             balance += G.node_data()[v];
