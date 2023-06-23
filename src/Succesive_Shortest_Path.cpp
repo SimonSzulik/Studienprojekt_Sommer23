@@ -58,6 +58,7 @@ void cap_slider_handler(GraphWin& gw,edge e, double f){
 }
 
 int main(){
+    node v;
 	// Creating Graph Window
 	GraphWin gw(G,"Successive Shortest Path Algorithm");
 	gw.display(window::center, window::center);
@@ -74,7 +75,16 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()){
-        gw.message("hallo");
+        int balance = 0;
+        forall_nodes(v,G) {
+            balance += G.node_data()[v];
+        }
+        if (balance != 0) {
+            gw.message("Supply/Demand values don't sum up to zero.");
+        }
+        else {
+            gw.message("hallo");
+        }
     }
 
 	return 0;
