@@ -2,7 +2,7 @@
  *	Studien_Projekt
  *
  *      Das Minimum Cost Flow Problem
- *      
+ *
  *      Visualisierung mit dem Successive Shortest Path Algorithmus
  *
  * ************************/
@@ -59,9 +59,10 @@ void cap_slider_handler(GraphWin& gw,edge e, double f){
 
 int main(){
     node v;
-	// Creating Graph Window
-	GraphWin gw(G,"Successive Shortest Path Algorithm");
-	gw.display(window::center, window::center);
+
+    // Creating Graph Window
+    GraphWin gw(G,"Successive Shortest Path Algorithm");
+    gw.display(window::center, window::center);
     gw.set_directed(true);
 
     // Setting Handlers
@@ -77,17 +78,30 @@ int main(){
     while(gw.edit()){
         int balance = 0;
         forall_nodes(v,G) {
+            if (G.node_data()[v] > 0) {
+                gw.set_color(v, green);
+            }
+            else if (G.node_data()[v] < 0) {
+                gw.set_color(v, red);
+            }
+            else {
+                gw.set_color(v, grey1);
+            }
+        }
+
+        forall_nodes(v,G) {
             balance += G.node_data()[v];
         }
+      
         if (balance != 0) {
             gw.message("Supply/Demand values don't sum up to zero.");
         }
         else {
-            gw.message("hallo");
+            gw.message("Correct Supply Values.");
         }
     }
 
-	return 0;
+    return 0;
 }
 
 
