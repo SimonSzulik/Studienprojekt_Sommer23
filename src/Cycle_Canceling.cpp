@@ -9,6 +9,7 @@
 
 #include <LEDA/graph/graph.h>
 #include <LEDA/graphics/graphwin.h>
+#include <LEDA/graph/graph_alg.h>
 
 using namespace leda;
 
@@ -18,17 +19,20 @@ const color cap_c = blue;
 
 static GRAPH<int,int> G;
 
-static edge_map<int> Gcost(G);
-static edge_map<int> Gcap(G);
+static edge_map<int> cost(G);
+static edge_map<int> cap(G);
+static node_map<int> supply(G);
+
+static edge_map<int> flow(G);
 
 // Initialize Edge Handler
 void init_edge(GraphWin& gw, edge e){
-    Gcap[e] = rand_int(10,20);
-    Gcost[e] = rand_int(30,50);
-    gw.set_width(e,Gcap[e]/10+5);
-    gw.set_slider_value(e,Gcap[e]/100.0,0);
-    gw.set_slider_value(e,Gcost[e]/100.0,1);
-    gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
+    cap[e] = rand_int(10, 20);
+    cost[e] = rand_int(30, 50);
+    gw.set_width(e, cap[e] / 10 + 5);
+    gw.set_slider_value(e, cap[e] / 100.0, 0);
+    gw.set_slider_value(e, cost[e] / 100.0, 1);
+    gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
 }
 
 void new_edge_handler(GraphWin& gw, edge e){
@@ -46,15 +50,65 @@ void new_node_handler(GraphWin& gw, node n){
 
 // Cost Handler & Slider
 void cost_slider_handler(GraphWin& gw, edge e, double f){
-    Gcost[e] = int(100*f);
-    gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
+    cost[e] = int(100 * f);
+    gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
 }
 
 // Cap Handler & Slider
 void cap_slider_handler(GraphWin& gw,edge e, double f){
-    Gcap[e] = int(100*f);
-    gw.set_width(e,Gcap[e]/10+5);
-    gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
+    cap[e] = int(100 * f);
+    gw.set_width(e, cap[e] / 10 + 5);
+    gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
+}
+
+void calculate_balance(GraphWin& gw) {
+    int balance = 0;
+
+    // color nodes regarding the supply
+    node v;
+    forall_nodes(v,G) {
+        if (G.node_data()[v] > 0) {
+            gw.set_color(v, green);
+        }
+        else if (G.node_data()[v] < 0) {
+            gw.set_color(v, red);
+        }
+        else {
+            gw.set_color(v, grey1);
+        }
+    }
+
+    forall_nodes(v,G) {
+        balance += G.node_data()[v];
+    }
+
+    if (balance != 0) {
+        gw.message("Supply/Demand values don't sum up to zero.");
+    }
+    else {
+        gw.message("Correct Supply Values.");
+    }
+}
+
+void initialize(GraphWin& gw) {
+    node v;
+    forall_nodes(v, G) supply[v] = G.node_data()[v];
+
+    bool F = FEASIBLE_FLOW(G, supply, cap, flow);
+
+    if (F) gw.message("FEASIBLE FLOW: true");
+    else gw.message("FEASIBLE FLOW: false");
+
+    edge e;
+    forall_edges(e, G) {
+        if (flow[e] != 0) {
+            gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost[e], cap[e], flow[e]));
+            gw.set_color(e, blue);
+        }
+        else {
+            gw.set_color(e, grey1);
+        }
+    }
 }
 
 int main(){
@@ -75,28 +129,8 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()){
-        int balance = 0;
-        forall_nodes(v,G) {
-            if (G.node_data()[v] > 0) {
-                gw.set_color(v, green);
-            }
-            else if (G.node_data()[v] < 0) {
-                gw.set_color(v, red);
-            }
-            else {
-                gw.set_color(v, grey1);
-            }
-        }
-
-        forall_nodes(v,G) {
-            balance += G.node_data()[v];
-        }
-        if (balance != 0) {
-            gw.message("Supply/Demand values don't sum up to zero.");
-        }
-        else {
-            gw.message("Correct Supply Values.");
-        }
+        calculate_balance(gw);
+        initialize(gw);
     }
 
     return 0;
