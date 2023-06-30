@@ -22,17 +22,20 @@ static GRAPH<int,int> G;
 static edge_map<int> cost(G);
 static edge_map<int> cap(G);
 static node_map<int> supply(G);
-
 static edge_map<int> flow(G);
+
+static edge_map<int> residual_cost(G);
+static edge_map<int> rest_cap(G);
+map<int, edge> edge_mapper;
 
 // Initialize Edge Handler
 void init_edge(GraphWin& gw, edge e){
     cap[e] = rand_int(10, 20);
     cost[e] = rand_int(30, 50);
-    gw.set_width(e, cap[e] / 10 + 5);
     gw.set_slider_value(e, cap[e] / 100.0, 0);
     gw.set_slider_value(e, cost[e] / 100.0, 1);
     gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
+    gw.set_width(e, 4);
 }
 
 void new_edge_handler(GraphWin& gw, edge e){
@@ -57,7 +60,6 @@ void cost_slider_handler(GraphWin& gw, edge e, double f){
 // Cap Handler & Slider
 void cap_slider_handler(GraphWin& gw,edge e, double f){
     cap[e] = int(100 * f);
-    gw.set_width(e, cap[e] / 10 + 5);
     gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
 }
 
@@ -104,9 +106,65 @@ void initialize(GraphWin& gw) {
         if (flow[e] != 0) {
             gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost[e], cap[e], flow[e]));
             gw.set_color(e, blue);
+            gw.set_width(e, 6);
         }
         else {
             gw.set_color(e, grey1);
+        }
+    }
+}
+
+void build_residual_graph(GraphWin& gw) {
+    edge e;
+    int key = 0;
+    forall_edges(e, G) {
+        edge_mapper[key] = e;
+        key++;
+    }
+
+    int edge_count = key;
+    for (int i=0; i < edge_count; i++) {
+        edge e = edge_mapper[i];
+
+        // Insert both
+        if (flow[e] < cap[e] && flow[e] > 0) {
+            // Foward Edge
+            residual_cost[e] = cost[e];
+            rest_cap[e] = cap[e] - flow[e];
+            gw.set_label(e, string("r=%d \n c=%d \n f=%d", rest_cap[e], cost[e], flow[e]));
+            gw.set_color(e, blue);
+            gw.set_width(e, 6);
+
+            // Backwards Edge
+            edge ji = gw.new_edge(target(e), source(e));
+            residual_cost[ji] = -cost[e];
+            rest_cap[ji] = flow[e];
+            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], cost[ji]));
+            gw.set_color(ji, pink);
+            gw.set_width(ji, 4);
+        }
+
+        // Fully saturated
+        if (flow[e] == cap[e]) {
+            edge ji = gw.new_edge(target(e), source(e));
+            residual_cost[ji] = -cost[e];
+            rest_cap[ji] = flow[e];
+            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], cost[ji]));
+            gw.set_color(ji, pink);
+            gw.set_width(ji, 4);
+
+            gw.set_label(e, string("r=%d \n c=%d \n f=%d", rest_cap[e], cost[e], flow[e]));
+            gw.set_color(e, blue);
+            gw.set_width(e, 6);
+        }
+
+        // Zero Flow
+        if (flow[e] == 0) {
+            residual_cost[e] = cost[e];
+            rest_cap[e] = cap[e];
+            gw.set_label(e, string("r=%d \n c=%d", rest_cap[e], cost[e]));
+            gw.set_color(e, black);
+            gw.set_width(e, 4);
         }
     }
 }
@@ -129,8 +187,18 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()){
+        gw.message("Calculating node balances...");
+        wait(1);
         calculate_balance(gw);
+        wait(1);
+        gw.message("Calculating feasible flow...");
+        wait(1);
         initialize(gw);
+        wait(1);
+        gw.message("Building residual graph...");
+        wait(3);
+        build_residual_graph(gw);
+        gw.message("Residual Graph");
     }
 
     return 0;
