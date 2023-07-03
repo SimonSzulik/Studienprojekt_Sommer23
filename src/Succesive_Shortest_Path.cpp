@@ -9,6 +9,7 @@
 
 #include <LEDA/graph/graph.h>
 #include <LEDA/graphics/graphwin.h>
+#include <LEDA/core/set.h>
 
 using namespace leda;
 
@@ -57,6 +58,53 @@ void cap_slider_handler(GraphWin& gw,edge e, double f){
     gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
 }
 
+// Algorithm functions
+void initialize_excess_demand(node_array<int>& ex, set<node>& E, set<node>& D) {
+    node v;
+    forall_nodes(v, G) {
+        ex[v] = G.node_data()[v];
+        if (ex[v] < 0) {
+            D.insert(v);
+        }
+        else if (ex[v] > 0) {
+            E.insert(v);
+        }
+    }
+}
+
+void visualize_ssp(GraphWin& gw) {
+    // Initialize variables
+    node v;
+    edge_array<int> flow(G);
+    node_array<int> potential(G);
+    node_array<int> excess(G);
+    set<node> EXCESS;
+    set<node> DEMAND;
+
+    initialize_excess_demand(excess, EXCESS, DEMAND);
+
+    // Visualize initialized state
+    gw.message("Initialized: Set E green, Set D red");
+    forall_nodes(v,G) {
+        if (EXCESS.member(v)) {
+            gw.set_color(v, green);
+        }
+        else if (DEMAND.member(v)) {
+            gw.set_color(v, red);
+        }
+        else {
+            gw.set_color(v, grey1);
+        }
+    }
+    leda_sleep(2);
+
+    // Main loop
+    while(!EXCESS.empty()) {
+        break;
+    }
+
+}
+
 int main(){
     node v;
 
@@ -77,17 +125,6 @@ int main(){
 
     while(gw.edit()){
         int balance = 0;
-        forall_nodes(v,G) {
-            if (G.node_data()[v] > 0) {
-                gw.set_color(v, green);
-            }
-            else if (G.node_data()[v] < 0) {
-                gw.set_color(v, red);
-            }
-            else {
-                gw.set_color(v, grey1);
-            }
-        }
 
         forall_nodes(v,G) {
             balance += G.node_data()[v];
@@ -98,10 +135,9 @@ int main(){
         }
         else {
             gw.message("Correct Supply Values.");
+            visualize_ssp(gw);
         }
     }
 
     return 0;
 }
-
-
