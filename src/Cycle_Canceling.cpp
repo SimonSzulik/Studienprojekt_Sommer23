@@ -24,6 +24,7 @@ static edge_map<int> cap(G);
 static node_map<int> supply(G);
 static edge_map<int> flow(G);
 
+
 static edge_map<int> residual_cost(G);
 static edge_map<int> rest_cap(G);
 map<int, edge> edge_mapper;
@@ -60,7 +61,7 @@ void cost_slider_handler(GraphWin& gw, edge e, double f){
 // Cap Handler & Slider
 void cap_slider_handler(GraphWin& gw,edge e, double f){
     cap[e] = int(100 * f);
-    gw.set_width(e, cap[e] / 10 + 15);
+    gw.set_width(e, cap[e]/25 + 3);
     gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
 }
 
@@ -91,6 +92,11 @@ void calculate_balance(GraphWin& gw) {
     else {
         gw.message("Correct Supply Values.");
     }
+}
+
+bool bellman_ford(){
+
+    return false;
 }
 
 void initialize(GraphWin& gw) {
@@ -132,7 +138,7 @@ void build_residual_graph(GraphWin& gw) {
             residual_cost[e] = cost[e];
             rest_cap[e] = cap[e] - flow[e];
             gw.set_label(e, string("rest_cap = %d \n cost = %d", rest_cap[e], cost[e]));
-            gw.set_color(e, pink);
+            gw.set_color(e, black);
 
             // Backwards Edge
             edge ji = gw.new_edge(target(e), source(e));
@@ -188,6 +194,8 @@ int main(){
     gw.set_edge_slider_handler(cap_slider_handler,0);
     gw.set_edge_slider_color(cap_c,0);
 
+
+
     while(gw.edit()){
         gw.message("Calculating node balances...");
         wait(2);
@@ -201,6 +209,7 @@ int main(){
         wait(5);
         build_residual_graph(gw);
         gw.message("Residual Graph");
+        
     }
 
     return 0;
