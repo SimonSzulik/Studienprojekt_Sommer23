@@ -28,6 +28,9 @@ static edge_map<int> residual_cost(G);
 static edge_map<int> rest_cap(G);
 map<int, edge> edge_mapper;
 
+static std::vector<edge> negative_cycle_edges;
+
+
 // Initialize Edge Handler
 void init_edge(GraphWin& gw, edge e){
     cap[e] = rand_int(10, 20);
@@ -61,6 +64,17 @@ void cost_slider_handler(GraphWin& gw, edge e, double f){
 void cap_slider_handler(GraphWin& gw,edge e, double f){
     cap[e] = int(100 * f);
     gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
+}
+
+edge search_edge(node s, node t) {
+    edge e;
+    forall_edges(e, G) {
+        if (source(e) == s && target(e) == t) {
+            return e;
+        }
+    }
+
+    return nil;
 }
 
 void calculate_balance(GraphWin& gw) {
@@ -131,7 +145,7 @@ void build_residual_graph(GraphWin& gw) {
             // Foward Edge
             residual_cost[e] = cost[e];
             rest_cap[e] = cap[e] - flow[e];
-            gw.set_label(e, string("r=%d \n c=%d \n f=%d", rest_cap[e], cost[e], flow[e]));
+            gw.set_label(e, string("r=%d \n c=%d \n f=%d", rest_cap[e], residual_cost[e], flow[e]));
             gw.set_color(e, blue);
             gw.set_width(e, 6);
 
@@ -139,7 +153,7 @@ void build_residual_graph(GraphWin& gw) {
             edge ji = gw.new_edge(target(e), source(e));
             residual_cost[ji] = -cost[e];
             rest_cap[ji] = flow[e];
-            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], cost[ji]));
+            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], residual_cost[ji]));
             gw.set_color(ji, pink);
             gw.set_width(ji, 4);
         }
@@ -149,24 +163,76 @@ void build_residual_graph(GraphWin& gw) {
             edge ji = gw.new_edge(target(e), source(e));
             residual_cost[ji] = -cost[e];
             rest_cap[ji] = flow[e];
-            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], cost[ji]));
+            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], residual_cost[ji]));
             gw.set_color(ji, pink);
             gw.set_width(ji, 4);
 
-            gw.set_label(e, string("r=%d \n c=%d \n f=%d", rest_cap[e], cost[e], flow[e]));
-            gw.set_color(e, blue);
-            gw.set_width(e, 6);
+            G.del_edge(e);
         }
 
         // Zero Flow
         if (flow[e] == 0) {
             residual_cost[e] = cost[e];
             rest_cap[e] = cap[e];
-            gw.set_label(e, string("r=%d \n c=%d", rest_cap[e], cost[e]));
+            gw.set_label(e, string("r=%d \n c=%d", rest_cap[e], residual_cost[e]));
             gw.set_color(e, black);
             gw.set_width(e, 4);
         }
     }
+}
+
+std::vector<node> bellman_ford(GraphWin& gw, node_array<int> dist, node s) {
+    edge l;
+    forall_edges(l, G) {
+        residual_cost[l] = -4;
+        gw.set_label(l, string("c = %d, r = %d", residual_cost[l], rest_cap[l]));
+    }
+    int n = G.number_of_nodes();
+    gw.message("Calculating negative cycles...");
+
+    node v;
+    forall_nodes(v, G) {
+        dist[v] = std::numeric_limits<int>::max();
+    }
+
+    dist[s] = 0;
+    static node_array<edge> pred(G);
+
+    for (int i = 0; i < n-1; ++i) {
+        edge e;
+        forall_edges(e, G) {
+            if (dist[source(e)] != std::numeric_limits<int>::max() && dist[source(e)] + residual_cost[e] < dist[target(e)]) {
+                dist[target(e)] = dist[source(e)] + residual_cost[e];
+                pred[target(e)] = e;
+            }
+        }
+    }
+
+    // Check for negative cycle
+    edge e;
+    forall_edges(e, G) {
+        if (dist[source(e)] != std::numeric_limits<int>::max() && dist[source(e)] + residual_cost[e] < dist[target(e)]) {
+            std::vector<node> cycle;
+
+            node negativeCycleNode = target(e);
+            for(int i = 0; i < n-1; ++i) {
+                negativeCycleNode = source(pred[negativeCycleNode]);
+            }
+
+            node v = negativeCycleNode;
+            do {
+                cycle.push_back(v);
+                v = source(pred[v]);
+                negative_cycle_edges.push_back(pred[v]);
+            } while(v != negativeCycleNode);
+
+            return cycle;
+        }
+    }
+
+    gw.message("Done...");
+
+    return std::vector<node>();
 }
 
 int main(){
@@ -186,21 +252,50 @@ int main(){
     gw.set_edge_slider_handler(cap_slider_handler,0);
     gw.set_edge_slider_color(cap_c,0);
 
-    while(gw.edit()){
+    while(gw.edit()) {
         gw.message("Calculating node balances...");
         wait(1);
         calculate_balance(gw);
+
         wait(1);
         gw.message("Calculating feasible flow...");
+
+        // Calculate feasible flow
         wait(1);
         initialize(gw);
+
         wait(1);
         gw.message("Building residual graph...");
-        wait(3);
-        build_residual_graph(gw);
-        gw.message("Residual Graph");
-    }
 
+        wait(3);
+        //build_residual_graph(gw);
+        gw.message("Residual Graph");
+
+        // find negative cycle
+        node_array<int> dist(G);
+        std::vector<node> cycle = bellman_ford(gw, dist, G.first_node());
+
+        for (edge k : negative_cycle_edges) {
+            gw.set_color(k, red);
+        }
+
+        while (!cycle.empty()) {
+            // Find minimal capacity
+            int d = 999;
+            for (edge e: negative_cycle_edges) {
+                if (rest_cap[e] < d) {
+                    d = rest_cap[e];
+                }
+            }
+
+            gw.message(string("min cap = %d", d));
+
+
+
+
+            break;
+        }
+    }
     return 0;
 }
 

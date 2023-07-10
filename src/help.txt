@@ -1,0 +1,8 @@
+1. Originalgraph
+2. Residualgraph bauen
+3. negativen Cycle berechnen
+4 Flow durch negativen Cycle schicken:
+	- Fall 1 Vorwärtskante in Richtung der originalen Kante: flow[originale_Kante] += flow im neg cycle
+	- Fall 2 Rückwärtskante entgegen der Richtung der originalen Kante: flow[originale_Kante] -= flow im neg cycle
+5. geupdateter Originalgraph mit neuen Flow werten
+6. Wiederhole Schritt 2
