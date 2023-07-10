@@ -10,6 +10,7 @@
 #include <LEDA/graph/graph.h>
 #include <LEDA/graphics/graphwin.h>
 #include <LEDA/core/set.h>
+#include <LEDA/graph/node_pq.h>
 
 using namespace leda;
 
@@ -68,6 +69,50 @@ void initialize_excess_demand(node_array<int>& ex, set<node>& E, set<node>& D) {
         }
         else if (ex[v] > 0) {
             E.insert(v);
+        }
+    }
+}
+
+/**
+ * Modified version of Dijkstras Shortest Path Algorithm, that uses the residual network instead.
+ */
+void dijkstra_mod(const graph& G, node s,
+                  const edge_array<int>& cost,
+                  const edge_array<int>& cap,
+                  const edge_array<int>& flow,
+                  node_array<int>& dist,
+                  node_array<edge>& pred) {
+    node_pq<int> PQ(G);
+
+    dist[s] = 0;
+    PQ.insert(s, 0);
+
+    node v;
+    forall_nodes(v, G) pred[v] = nil;
+
+    while (!PQ.empty()) {
+        node u = PQ.del_min();  // add u to S
+        int du = dist[u];
+        edge e;
+        forall_inout_edges(e, u) {
+            v = G.opposite(u, e);  // makes it work for ugraphs
+            int c;
+            if (G.source(e) == u && flow[e] < cap[e]) {
+                // Edge is contained in the original graph and still contained in residual graph
+                c = du + cost[e];
+            }
+            else if (G.target(e) == u && flow[e] > 0) {
+                // Edge is not contained in original graph, but is contained in residual graph
+                c = du - cost[e];
+            }
+            else continue;
+
+            if (pred[v] == nil && v != s)
+                PQ.insert(v, c);     // first message to v
+            else if (c < dist[v]) PQ.decrease_p(v, c); // better path
+            else continue;
+            dist[v] = c;
+            pred[v] = e;
         }
     }
 }
