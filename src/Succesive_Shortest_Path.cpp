@@ -75,6 +75,8 @@ void initialize_excess_demand(node_array<int>& ex, set<node>& E, set<node>& D) {
 void visualize_ssp(GraphWin& gw) {
     // Initialize variables
     node v;
+    node e;
+    node d;
     edge_array<int> flow(G);
     node_array<int> potential(G);
     node_array<int> excess(G);
@@ -100,6 +102,14 @@ void visualize_ssp(GraphWin& gw) {
 
     // Main loop
     while(!EXCESS.empty()) {
+        e = EXCESS.choose();
+        d = DEMAND.choose();
+
+        gw.set_color(e, yellow);
+        gw.set_color(d, brown);
+
+        gw.message("Choose one excess and one demand node");
+        leda_sleep(2);
         break;
     }
 
