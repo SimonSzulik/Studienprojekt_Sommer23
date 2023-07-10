@@ -120,9 +120,11 @@ void dijkstra_mod(const graph& G, node s,
 void visualize_ssp(GraphWin& gw) {
     // Initialize variables
     node v;
-    node e;
-    node d;
+    edge e;
+    node s;
+    node t;
     edge_array<int> flow(G);
+    edge_array<int> reducedCost(G);
     node_array<int> potential(G);
     node_array<int> excess(G);
     set<node> EXCESS;
@@ -130,32 +132,101 @@ void visualize_ssp(GraphWin& gw) {
 
     initialize_excess_demand(excess, EXCESS, DEMAND);
 
-    // Visualize initialized state
-    gw.message("Initialized: Set E green, Set D red");
-    forall_nodes(v,G) {
-        if (EXCESS.member(v)) {
-            gw.set_color(v, green);
-        }
-        else if (DEMAND.member(v)) {
-            gw.set_color(v, red);
-        }
-        else {
-            gw.set_color(v, grey1);
-        }
+    forall_edges(e, G) { // Initialize reduced cost
+        reducedCost[e] = Gcost[e];
     }
-    leda_sleep(2);
+
+
 
     // Main loop
     while(!EXCESS.empty()) {
-        e = EXCESS.choose();
-        d = DEMAND.choose();
+        // Visualize state
+        gw.message("New Run of main loop: Set E green, Set D red");
+        forall_nodes(v,G) {
+            if (EXCESS.member(v)) {
+                gw.set_color(v, green);
+            }
+            else if (DEMAND.member(v)) {
+                gw.set_color(v, red);
+            }
+            else {
+                gw.set_color(v, grey1);
+            }
+        }
+        leda_sleep(2);
 
-        gw.set_color(e, yellow);
-        gw.set_color(d, brown);
+        s = EXCESS.choose();
+        t = DEMAND.choose();
+
+        gw.set_color(s, yellow);
+        gw.set_color(t, brown);
 
         gw.message("Choose one excess and one demand node");
         leda_sleep(2);
-        break;
+
+        gw.message("Finding shortest path in residual network");
+        node_array<int> distance(G);
+        node_array<edge> pred(G);
+        dijkstra_mod(G, s, reducedCost, Gcap, flow, distance, pred);
+
+        gw.message("Shortest path found, click 'done' to continue");
+        gw.save_all_attributes();
+        v = t;
+        int min_residual_capacity = MAXINT;
+        while (v != s) {
+            e = pred[v];
+            gw.set_color(e, red);
+            v = G.opposite(pred[v], v);
+
+            int r;
+            if (G.source(e) == v) {
+                // Edge in actual graph
+                r = Gcap[e] - flow[e];
+            }
+            else {
+                // Virtual Edge in residual graph
+                r = flow[e];
+            }
+
+            if (r < min_residual_capacity) min_residual_capacity = r;
+        }
+        gw.edit();
+        gw.restore_all_attributes();
+
+        // Adjust node potentials
+        forall_nodes(v, G) {
+            potential[v] = potential[v] - distance[v];
+        }
+
+        // Find amount of flow
+        int delta = min(min(excess[s], - excess[t]), min_residual_capacity);
+
+        // Send flow
+        v = t;
+        while (v != s) {
+            e = pred[v];
+            v = G.opposite(pred[v], v);
+
+            int r;
+            if (G.source(e) == v) {
+                // Edge in actual graph
+                flow[e] += delta;
+            }
+            else {
+                // Virtual Edge in residual graph
+                flow[e] -= delta;
+            }
+        }
+
+        // Update excess values and sets
+        if ((excess[s] -= delta) == 0) EXCESS.del(s);
+        if ((excess[t] += delta) == 0) DEMAND.del(t);
+
+        // Update reduced costs
+        forall_edges(e, G) {
+            reducedCost[e] = Gcost[e] - potential[G.source(e)] + potential[G.target(e)];
+        }
+
     }
 
 }
