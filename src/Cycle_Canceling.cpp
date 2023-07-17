@@ -18,17 +18,23 @@ const color cost_c = red;
 const color cap_c = blue;
 
 static GRAPH<int,int> G;
+static std::vector<edge> original_graph;
 
 static edge_map<int> cost(G);
 static edge_map<int> cap(G);
 static node_map<int> supply(G);
 static edge_map<int> flow(G);
 
+static map<edge, int> cost_copy;
+static map<edge, int> cap_copy;
+static map<edge, int> flow_copy;
+
 static edge_map<int> residual_cost(G);
 static edge_map<int> rest_cap(G);
 map<int, edge> edge_mapper;
 
 static std::vector<edge> negative_cycle_edges;
+static std::vector<edge> residual_edges;
 
 
 // Initialize Edge Handler
@@ -61,7 +67,7 @@ void cost_slider_handler(GraphWin& gw, edge e, double f){
 }
 
 // Cap Handler & Slider
-void cap_slider_handler(GraphWin& gw,edge e, double f){
+void cap_slider_handler(GraphWin& gw, edge e, double f){
     cap[e] = int(100 * f);
     gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
 }
@@ -119,6 +125,7 @@ void initialize(GraphWin& gw) {
     forall_edges(e, G) {
         if (flow[e] != 0) {
             gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost[e], cap[e], flow[e]));
+            gw.set_label_color(e, blue);
             gw.set_color(e, blue);
             gw.set_width(e, 6);
         }
@@ -126,12 +133,16 @@ void initialize(GraphWin& gw) {
             gw.set_color(e, grey1);
         }
     }
+
+    for (edge m : original_graph) {
+        flow_copy[m] = flow[m];
+    }
 }
 
 void build_residual_graph(GraphWin& gw) {
-    edge e;
     int key = 0;
-    forall_edges(e, G) {
+    edge_mapper.clear();
+    for (edge e : original_graph) {
         edge_mapper[key] = e;
         key++;
     }
@@ -141,52 +152,58 @@ void build_residual_graph(GraphWin& gw) {
         edge e = edge_mapper[i];
 
         // Insert both
-        if (flow[e] < cap[e] && flow[e] > 0) {
+        if (flow_copy[e] < cap_copy[e] && flow_copy[e] > 0) {
             // Foward Edge
-            residual_cost[e] = cost[e];
-            rest_cap[e] = cap[e] - flow[e];
-            gw.set_label(e, string("r=%d \n c=%d \n f=%d", rest_cap[e], residual_cost[e], flow[e]));
-            gw.set_color(e, blue);
-            gw.set_width(e, 6);
+            residual_cost[e] = cost_copy[e];
+            rest_cap[e] = cap_copy[e] - flow_copy[e];
+            gw.set_label(e, string("c=%d\nr=%d", residual_cost[e], rest_cap[e]));
+            gw.set_label_color(e, black);
+            gw.set_color(e, black);
+            gw.set_width(e, 4);
 
             // Backwards Edge
             edge ji = gw.new_edge(target(e), source(e));
-            residual_cost[ji] = -cost[e];
-            rest_cap[ji] = flow[e];
-            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], residual_cost[ji]));
+            residual_cost[ji] = -cost_copy[e];
+            rest_cap[ji] = flow_copy[e];
+            gw.set_label(ji, string("c=%d\nr=%d", residual_cost[ji], rest_cap[ji]));
+            gw.set_label_color(ji, pink);
             gw.set_color(ji, pink);
+            gw.set_label_color(ji, pink);
             gw.set_width(ji, 4);
         }
 
         // Fully saturated
-        if (flow[e] == cap[e]) {
+        if (flow_copy[e] == cap_copy[e]) {
             edge ji = gw.new_edge(target(e), source(e));
-            residual_cost[ji] = -cost[e];
-            rest_cap[ji] = flow[e];
-            gw.set_label(ji, string("r=%d \n c=%d", rest_cap[ji], residual_cost[ji]));
+            residual_cost[ji] = -cost_copy[e];
+            rest_cap[ji] = flow_copy[e];
+            gw.set_label(ji, string("c=%d\nr=%d", residual_cost[ji], rest_cap[ji]));
+            gw.set_label_color(ji, pink);
             gw.set_color(ji, pink);
+            gw.set_label_color(ji, pink);
             gw.set_width(ji, 4);
 
             G.del_edge(e);
         }
 
         // Zero Flow
-        if (flow[e] == 0) {
-            residual_cost[e] = cost[e];
-            rest_cap[e] = cap[e];
-            gw.set_label(e, string("r=%d \n c=%d", rest_cap[e], residual_cost[e]));
+        if (flow_copy[e] == 0) {
+            residual_cost[e] = cost_copy[e];
+            rest_cap[e] = cap_copy[e];
+            gw.set_label(e, string("c=%d\nr=%d", residual_cost[e], rest_cap[e]));
+            gw.set_label_color(e, black);
             gw.set_color(e, black);
             gw.set_width(e, 4);
         }
     }
+
+    edge k;
+    forall_edges(k, G) {
+        residual_edges.push_back(k);
+    }
 }
 
 std::vector<node> bellman_ford(GraphWin& gw, node_array<int> dist, node s) {
-    edge l;
-    forall_edges(l, G) {
-        residual_cost[l] = -4;
-        gw.set_label(l, string("c = %d, r = %d", residual_cost[l], rest_cap[l]));
-    }
     int n = G.number_of_nodes();
     gw.message("Calculating negative cycles...");
 
@@ -198,7 +215,7 @@ std::vector<node> bellman_ford(GraphWin& gw, node_array<int> dist, node s) {
     dist[s] = 0;
     static node_array<edge> pred(G);
 
-    for (int i = 0; i < n-1; ++i) {
+    for (int i = 0; i < n; i++) {
         edge e;
         forall_edges(e, G) {
             if (dist[source(e)] != std::numeric_limits<int>::max() && dist[source(e)] + residual_cost[e] < dist[target(e)]) {
@@ -209,13 +226,14 @@ std::vector<node> bellman_ford(GraphWin& gw, node_array<int> dist, node s) {
     }
 
     // Check for negative cycle
+    negative_cycle_edges.clear();
     edge e;
     forall_edges(e, G) {
         if (dist[source(e)] != std::numeric_limits<int>::max() && dist[source(e)] + residual_cost[e] < dist[target(e)]) {
             std::vector<node> cycle;
 
             node negativeCycleNode = target(e);
-            for(int i = 0; i < n-1; ++i) {
+            for(int i = 0; i < n; i++) {
                 negativeCycleNode = source(pred[negativeCycleNode]);
             }
 
@@ -230,13 +248,93 @@ std::vector<node> bellman_ford(GraphWin& gw, node_array<int> dist, node s) {
         }
     }
 
-    gw.message("Done...");
-
     return std::vector<node>();
 }
 
+bool edge_direction_is_equal(edge e) {
+    for (edge s : original_graph) {
+        if (source(s) == source(e) && target(s) == target(e)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool edge_direction_is_reversed(edge e) {
+    for (edge s : original_graph) {
+        if (source(s) == target(e) && target(s) == source(e)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_original(edge r) {
+    for (edge o : original_graph) {
+        if (source(o) == source(r) && target(o) == target(r)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void rebuild_original_graph(GraphWin& gw) {
+    for (edge r : residual_edges) {
+        if (!is_original(r)) {
+            G.del_edge(r);
+        }
+    }
+
+    for (edge e : original_graph) {
+        if (flow_copy[e] > 0) {
+            gw.set_color(e, blue);
+            gw.set_width(e, 6);
+            gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost_copy[e], cap_copy[e], flow_copy[e]));
+            gw.set_label_color(e, blue);
+        }
+        else {
+            gw.set_label(e, string("cost = %d \n cap = %d", cost_copy[e], cap_copy[e]));
+            gw.set_color(e, black);
+        }
+    }
+    residual_edges.clear();
+    gw.message("Original Graph");
+}
+
+edge get_original_of_reverse(edge r) {
+    for (edge o : original_graph) {
+        if (source(r) == target(o) && target(r) == source(o)) {
+            return o;
+        }
+    }
+    return nil;
+}
+
+bool is_already_used(std::vector<edge> used, edge e) {
+    for (edge u : used) {
+        if (source(u) == source(e) && target(u) == target(e)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+int total_cost() {
+    int min_cost = 0;
+
+    for (edge e : original_graph) {
+        int flow = flow_copy[e];
+        if (flow > 0) {
+            int cost = cost_copy[e];
+            min_cost += flow * cost;
+        }
+    }
+
+    return min_cost;
+}
+
 int main(){
-    node v;
     // Creating Graph Window
     GraphWin gw(G,"Cycle Canceling Algorithm");
     gw.display(window::center, window::center);
@@ -253,34 +351,63 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()) {
+        //build_test_graph(gw);
+        // Save original graph
+        edge r;
+        forall_edges(r, G) {
+            original_graph.push_back(r);
+            cap_copy[r] = cap[r];
+            cost_copy[r] = cost[r];
+        }
+
         gw.message("Calculating node balances...");
-        wait(1);
+        sleep(1);
         calculate_balance(gw);
 
-        wait(1);
+        gw.edit();
+
         gw.message("Calculating feasible flow...");
+        sleep(1);
 
         // Calculate feasible flow
-        wait(1);
         initialize(gw);
+        gw.message(string("Total Cost of Flow: %d --> Click \"done\".", total_cost()));
+        gw.edit();
 
-        wait(1);
-        gw.message("Building residual graph...");
+        gw.message("Building Residual Graph...");
+        sleep(1);
+        build_residual_graph(gw);
+        gw.message("Generated Residual Graph. --> Click \"done\".");
 
-        wait(3);
-        //build_residual_graph(gw);
-        gw.message("Residual Graph");
+        gw.edit();
 
         // find negative cycle
+        gw.message("Detect negative cycles in residual graph...");
+        sleep(2);
         node_array<int> dist(G);
         std::vector<node> cycle = bellman_ford(gw, dist, G.first_node());
 
-        for (edge k : negative_cycle_edges) {
-            gw.set_color(k, red);
+        node x;
+        forall_nodes(x, G) {
+            cycle = bellman_ford(gw, dist, G.first_node());
+
+            if (!cycle.empty()) {
+                break;
+            }
+        }
+
+        for (edge e : negative_cycle_edges) {
+            gw.set_color(e, red);
+            gw.set_label_color(e, red);
+        }
+
+        if (cycle.empty()) {
+            gw.message("No negative cycles detected.");
+            sleep(3);
         }
 
         while (!cycle.empty()) {
-            // Find minimal capacity
+            // Find minimal capacity as flow
             int d = 999;
             for (edge e: negative_cycle_edges) {
                 if (rest_cap[e] < d) {
@@ -288,13 +415,83 @@ int main(){
                 }
             }
 
-            gw.message(string("min cap = %d", d));
+            gw.message(string("Augment %d Flow Units through the negative cycle --> Click \"done\".", d));
+            gw.edit();
 
+            std::vector<edge> used;
 
+            // adjust flow with delta
+            for (edge e : negative_cycle_edges) {
+                if (!is_already_used(used, e)) {
+                    if (edge_direction_is_equal(e)) {
+                        gw.set_color(e, green2);
+                        gw.message(string("Old Flow: %d --> Click \"done\".", flow_copy[e]));
+                        gw.edit();
+                        flow_copy[e] += d;
+                        gw.message(string("New Flow: %d --> Click \"done\".", flow_copy[e]));
+                        gw.edit();
+                    }
 
+                    else {
+                        edge o = get_original_of_reverse(e);
+                        gw.set_color(o, green2);
+                        gw.message(string("Old Flow: %d --> Click \"done\".", flow_copy[o]));
+                        gw.edit();
+                        flow_copy[o] -= d;
+                        gw.message(string("New Flow: %d --> Click \"done\".", flow_copy[o]));
+                        gw.edit();
+                    }
 
-            break;
+                    used.push_back(e);
+                }
+            }
+
+            used.clear();
+
+            gw.message("Original Graph Adjustments...");
+            sleep(2);
+            rebuild_original_graph(gw);
+
+            for (edge e : original_graph) {
+                if (flow_copy[e] > 0) {
+                    gw.set_color(e, blue);
+                    gw.set_width(e, 6);
+                    gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost_copy[e], cap_copy[e], flow_copy[e]));
+                    gw.set_label_color(e, blue);
+                }
+                else {
+                    gw.set_label(e, string("cost = %d \n cap = %d", cost_copy[e], cap_copy[e]));
+                    gw.set_label_color(e, black);
+                }
+            }
+
+            gw.message(string("Total Cost of Flow: %d --> Click \"done\" to minimize costs.", total_cost()));
+
+            gw.edit();
+
+            build_residual_graph(gw);
+
+            gw.message("Finding negative cycles in residual graph --> Click \"done\"..");
+
+            gw.edit();
+
+            node x;
+            forall_nodes(x, G) {
+                cycle = bellman_ford(gw, dist, G.first_node());
+
+                if (!cycle.empty()) {
+                    break;
+                }
+            }
+
+            for (edge e : negative_cycle_edges) {
+                gw.set_color(e, red);
+            }
         }
+
+        rebuild_original_graph(gw);
+
+        gw.message(string("Algorithm terminated. Minimal Cost of Flow: %d", total_cost()));
     }
     return 0;
 }
