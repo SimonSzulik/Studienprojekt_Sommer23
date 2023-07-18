@@ -99,10 +99,12 @@ void dijkstra_mod(const graph& G, node s,
             int c;
             if (G.source(e) == u && flow[e] < cap[e]) {
                 // Edge is contained in the original graph and still contained in residual graph
+                assert(cost[e] >= 0);
                 c = du + cost[e];
             }
             else if (G.target(e) == u && flow[e] > 0) {
                 // Edge is not contained in original graph, but is contained in residual graph
+                assert(cost[e] <= 0);
                 c = du - cost[e];
             }
             else continue;
