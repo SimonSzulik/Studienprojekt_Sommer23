@@ -231,6 +231,8 @@ void visualize_ssp(GraphWin& gw) {
 
     }
 
+    // Visualize result
+    gw.message("Algorithm terminated.");
 }
 
 int main(){
@@ -252,6 +254,9 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()){
+        gw.set_edge_slider_handler(nil, 0);
+        gw.set_edge_slider_handler(nil, 1);
+
         int balance = 0;
 
         forall_nodes(v,G) {
