@@ -173,7 +173,7 @@ void visualize_ssp(GraphWin& gw) {
         node_array<edge> pred(G);
         dijkstra_mod(G, s, reducedCost, Gcap, flow, distance, pred);
 
-        gw.message("Shortest path found, click 'done' to continue");
+        gw.message("Shortest path found.");
         gw.save_all_attributes();
         v = t;
         int min_residual_capacity = MAXINT;
@@ -194,7 +194,7 @@ void visualize_ssp(GraphWin& gw) {
 
             if (r < min_residual_capacity) min_residual_capacity = r;
         }
-        gw.edit();
+        sleep(SLEEP_TIME);
         gw.restore_all_attributes();
 
         // Adjust node potentials
@@ -231,6 +231,12 @@ void visualize_ssp(GraphWin& gw) {
             reducedCost[e] = Gcost[e] - potential[G.source(e)] + potential[G.target(e)];
         }
 
+        // Adjust edge labels
+        gw.message("Update flow, node potentials and reduced costs");
+        forall_edges(e, G) {
+            gw.set_label(e,string("red. cost = %d \n res. cap = %d \n flow = %d",reducedCost[e],Gcap[e] - flow[e],flow[e]));
+        }
+        gw.redraw();
     }
 
     // Visualize result
@@ -260,9 +266,6 @@ int main(){
     gw.set_edge_slider_color(cap_c,0);
 
     while(gw.edit()){
-        gw.set_edge_slider_handler(nil, 0);
-        gw.set_edge_slider_handler(nil, 1);
-
         int balance = 0;
 
         forall_nodes(v,G) {
@@ -273,6 +276,8 @@ int main(){
             gw.message("Supply/Demand values don't sum up to zero.");
         }
         else {
+            gw.set_edge_slider_handler(nil, 0);
+            gw.set_edge_slider_handler(nil, 1);
             gw.message("Correct Supply Values.");
             visualize_ssp(gw);
         }
