@@ -18,6 +18,8 @@ using namespace leda;
 const color cost_c = red;
 const color cap_c = blue;
 
+const int SLEEP_TIME = 3;
+
 static GRAPH<int,int> G;
 
 static edge_map<int> Gcost(G);
@@ -155,7 +157,7 @@ void visualize_ssp(GraphWin& gw) {
                 gw.set_color(v, grey1);
             }
         }
-        leda_sleep(2);
+        leda_sleep(SLEEP_TIME);
 
         s = EXCESS.choose();
         t = DEMAND.choose();
@@ -164,7 +166,7 @@ void visualize_ssp(GraphWin& gw) {
         gw.set_color(t, brown);
 
         gw.message("Choose one excess and one demand node");
-        leda_sleep(2);
+        leda_sleep(SLEEP_TIME);
 
         gw.message("Finding shortest path in residual network");
         node_array<int> distance(G);
