@@ -233,6 +233,10 @@ void visualize_ssp(GraphWin& gw) {
 
     // Visualize result
     gw.message("Algorithm terminated.");
+    forall_edges(e, G) {
+        gw.set_label(e,string("flow = %d", flow[e]));
+    }
+    gw.redraw();
 }
 
 int main(){
