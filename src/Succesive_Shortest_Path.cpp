@@ -241,6 +241,7 @@ void visualize_ssp(GraphWin& gw) {
 
     // Visualize result
     gw.message("Algorithm terminated.");
+    gw.edit();
 }
 
 int main(){
@@ -274,8 +275,30 @@ int main(){
         else {
             gw.set_edge_slider_handler(nil, 0);
             gw.set_edge_slider_handler(nil, 1);
+
+            gw.place_into_win();
+            gw.redraw();
             gw.message("Correct Supply Values.");
             visualize_ssp(gw);
+
+            // restore editable state
+            gw.set_edge_slider_handler(cost_slider_handler,1);
+            gw.set_edge_slider_color(cost_c,1);
+
+            gw.set_edge_slider_handler(cap_slider_handler,0);
+            gw.set_edge_slider_color(cap_c,0);
+
+            forall_nodes(v, G) {
+                gw.set_color(v, ivory);
+            }
+
+            edge e;
+            forall_edges(e, G) {
+                gw.set_label(e,string("cost = %d \n cap = %d",Gcost[e],Gcap[e]));
+            }
+
+            gw.message("");
+            gw.redraw();
         }
     }
 
