@@ -194,7 +194,7 @@ void visualize_ssp(GraphWin& gw) {
 
             if (r < min_residual_capacity) min_residual_capacity = r;
         }
-        sleep(SLEEP_TIME);
+        leda_sleep(SLEEP_TIME);
         gw.restore_all_attributes();
 
         // Adjust node potentials
@@ -237,6 +237,7 @@ void visualize_ssp(GraphWin& gw) {
             gw.set_label(e,string("red. cost = %d \n res. cap = %d \n flow = %d",reducedCost[e],Gcap[e] - flow[e],flow[e]));
         }
         gw.redraw();
+        leda_sleep(SLEEP_TIME);
     }
 
     // Visualize result
