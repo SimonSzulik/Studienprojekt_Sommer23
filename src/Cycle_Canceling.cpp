@@ -72,18 +72,7 @@ void cap_slider_handler(GraphWin& gw, edge e, double f){
     gw.set_label(e,string("cost = %d \n cap = %d", cost[e], cap[e]));
 }
 
-edge search_edge(node s, node t) {
-    edge e;
-    forall_edges(e, G) {
-        if (source(e) == s && target(e) == t) {
-            return e;
-        }
-    }
-
-    return nil;
-}
-
-void calculate_balance(GraphWin& gw) {
+bool calculate_balance(GraphWin& gw) {
     int balance = 0;
 
     // color nodes regarding the supply
@@ -105,11 +94,10 @@ void calculate_balance(GraphWin& gw) {
     }
 
     if (balance != 0) {
-        gw.message("Supply/Demand values don't sum up to zero.");
+        return false;
     }
-    else {
-        gw.message("Correct Supply Values.");
-    }
+
+    return true;
 }
 
 void initialize(GraphWin& gw) {
@@ -124,13 +112,14 @@ void initialize(GraphWin& gw) {
     edge e;
     forall_edges(e, G) {
         if (flow[e] != 0) {
-            gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost[e], cap[e], flow[e]));
+            gw.set_label(e, string("(%d / %d), c: %d", flow[e], cap[e], cost[e]));
             gw.set_label_color(e, blue);
             gw.set_color(e, blue);
             gw.set_width(e, 6);
         }
         else {
-            gw.set_color(e, grey1);
+            gw.set_color(e, black);
+            gw.set_label(e, string("(%d / %d), c: %d", flow[e], cap[e], cost[e]));
         }
     }
 
@@ -156,7 +145,7 @@ void build_residual_graph(GraphWin& gw) {
             // Foward Edge
             residual_cost[e] = cost_copy[e];
             rest_cap[e] = cap_copy[e] - flow_copy[e];
-            gw.set_label(e, string("c=%d\nr=%d", residual_cost[e], rest_cap[e]));
+            gw.set_label(e, string("r: %d, c:%d", rest_cap[e], residual_cost[e]));
             gw.set_label_color(e, black);
             gw.set_color(e, black);
             gw.set_width(e, 4);
@@ -165,7 +154,7 @@ void build_residual_graph(GraphWin& gw) {
             edge ji = gw.new_edge(target(e), source(e));
             residual_cost[ji] = -cost_copy[e];
             rest_cap[ji] = flow_copy[e];
-            gw.set_label(ji, string("c=%d\nr=%d", residual_cost[ji], rest_cap[ji]));
+            gw.set_label(ji, string("r: %d, c:%d", rest_cap[ji], residual_cost[ji]));
             gw.set_label_color(ji, pink);
             gw.set_color(ji, pink);
             gw.set_label_color(ji, pink);
@@ -177,7 +166,7 @@ void build_residual_graph(GraphWin& gw) {
             edge ji = gw.new_edge(target(e), source(e));
             residual_cost[ji] = -cost_copy[e];
             rest_cap[ji] = flow_copy[e];
-            gw.set_label(ji, string("c=%d\nr=%d", residual_cost[ji], rest_cap[ji]));
+            gw.set_label(ji, string("r: %d, c:%d", rest_cap[ji], residual_cost[ji]));
             gw.set_label_color(ji, pink);
             gw.set_color(ji, pink);
             gw.set_label_color(ji, pink);
@@ -190,7 +179,7 @@ void build_residual_graph(GraphWin& gw) {
         if (flow_copy[e] == 0) {
             residual_cost[e] = cost_copy[e];
             rest_cap[e] = cap_copy[e];
-            gw.set_label(e, string("c=%d\nr=%d", residual_cost[e], rest_cap[e]));
+            gw.set_label(e, string("r: %d, c:%d", rest_cap[e], residual_cost[e]));
             gw.set_label_color(e, black);
             gw.set_color(e, black);
             gw.set_width(e, 4);
@@ -260,15 +249,6 @@ bool edge_direction_is_equal(edge e) {
     return false;
 }
 
-bool edge_direction_is_reversed(edge e) {
-    for (edge s : original_graph) {
-        if (source(s) == target(e) && target(s) == source(e)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool is_original(edge r) {
     for (edge o : original_graph) {
         if (source(o) == source(r) && target(o) == target(r)) {
@@ -289,11 +269,11 @@ void rebuild_original_graph(GraphWin& gw) {
         if (flow_copy[e] > 0) {
             gw.set_color(e, blue);
             gw.set_width(e, 6);
-            gw.set_label(e, string("cost = %d \n cap = %d \n flow = %d", cost_copy[e], cap_copy[e], flow_copy[e]));
+            gw.set_label(e, string("(%d / %d), c: %d", flow_copy[e], cap_copy[e], cost_copy[e]));
             gw.set_label_color(e, blue);
         }
         else {
-            gw.set_label(e, string("cost = %d \n cap = %d", cost_copy[e], cap_copy[e]));
+            gw.set_label(e, string("(%d / %d), c: %d", flow_copy[e], cap_copy[e], cost_copy[e]));
             gw.set_color(e, black);
         }
     }
@@ -350,8 +330,9 @@ int main(){
     gw.set_edge_slider_handler(cap_slider_handler,0);
     gw.set_edge_slider_color(cap_c,0);
 
+    bool wrong_balance = true;
+
     while(gw.edit()) {
-        //build_test_graph(gw);
         // Save original graph
         edge r;
         forall_edges(r, G) {
@@ -360,24 +341,39 @@ int main(){
             cost_copy[r] = cost[r];
         }
 
-        gw.message("Calculating node balances...");
-        sleep(1);
-        calculate_balance(gw);
+        // Sliders won't be needed anymore
+        gw.set_edge_slider_handler(nil,1);
+        gw.set_edge_slider_color(nil,1);
 
-        gw.edit();
+        gw.set_edge_slider_handler(nil,0);
+        gw.set_edge_slider_color(nil,0);
+
+        gw.message("Calculating node balances... -> Click \"done\" to continue..");
+        sleep(1);
+
+        // Check for node balance
+        while (gw.edit() && wrong_balance) {
+            if (calculate_balance(gw)) {
+                wrong_balance = false;
+                gw.message("Correct node balance. -> Click \"done\" to continue.");
+            }
+            else {
+                gw.message("Node values don't sum up to 0. Please enter new values.");
+            }
+        }
 
         gw.message("Calculating feasible flow...");
         sleep(1);
 
         // Calculate feasible flow
         initialize(gw);
-        gw.message(string("Total Cost of Flow: %d --> Click \"done\".", total_cost()));
+        gw.message(string("Total Cost of Flow: %d -> Click \"done\" to continue.", total_cost()));
         gw.edit();
 
         gw.message("Building Residual Graph...");
         sleep(1);
         build_residual_graph(gw);
-        gw.message("Generated Residual Graph. --> Click \"done\".");
+        gw.message("Generated Residual Graph. -> Click \"done\" to continue.");
 
         gw.edit();
 
@@ -403,7 +399,7 @@ int main(){
 
         if (cycle.empty()) {
             gw.message("No negative cycles detected.");
-            sleep(3);
+            sleep(1);
         }
 
         while (!cycle.empty()) {
@@ -415,7 +411,7 @@ int main(){
                 }
             }
 
-            gw.message(string("Augment %d Flow Units through the negative cycle --> Click \"done\".", d));
+            gw.message(string("Augment %d Flow Units through the negative cycle -> Click \"done\" to continue.", d));
             gw.edit();
 
             std::vector<edge> used;
@@ -424,21 +420,19 @@ int main(){
             for (edge e : negative_cycle_edges) {
                 if (!is_already_used(used, e)) {
                     if (edge_direction_is_equal(e)) {
-                        gw.set_color(e, green2);
-                        gw.message(string("Old Flow: %d --> Click \"done\".", flow_copy[e]));
-                        gw.edit();
+                        gw.set_color(e, green);
+                        int old_flow = flow_copy[e];
                         flow_copy[e] += d;
-                        gw.message(string("New Flow: %d --> Click \"done\".", flow_copy[e]));
+                        gw.message(string("Flow: %d ---> %d. Click \"done\" to continue.", old_flow, flow_copy[e]));
                         gw.edit();
                     }
 
                     else {
                         edge o = get_original_of_reverse(e);
-                        gw.set_color(o, green2);
-                        gw.message(string("Old Flow: %d --> Click \"done\".", flow_copy[o]));
-                        gw.edit();
+                        gw.set_color(o, orange);
+                        int old_flow = flow_copy[o];
                         flow_copy[o] -= d;
-                        gw.message(string("New Flow: %d --> Click \"done\".", flow_copy[o]));
+                        gw.message(string("Flow: %d ---> %d. Click \"done\" to continue.", old_flow, flow_copy[o]));
                         gw.edit();
                     }
 
@@ -471,7 +465,7 @@ int main(){
 
             build_residual_graph(gw);
 
-            gw.message("Finding negative cycles in residual graph --> Click \"done\"..");
+            gw.message("Finding negative cycles in residual graph -> Click \"done\" to continue.");
 
             gw.edit();
 
@@ -491,7 +485,7 @@ int main(){
 
         rebuild_original_graph(gw);
 
-        gw.message(string("Algorithm terminated. Minimal Cost of Flow: %d", total_cost()));
+        gw.message(string("Algorithm terminated. Minimum-Cost Flow: %d", total_cost()));
     }
     return 0;
 }
