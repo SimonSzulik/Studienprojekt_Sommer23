@@ -134,13 +134,19 @@ void visualize_ssp(GraphWin& gw) {
     set<node> EXCESS;
     set<node> DEMAND;
 
+    bool success = true;
+
     initialize_excess_demand(excess, EXCESS, DEMAND);
 
     forall_edges(e, G) { // Initialize reduced cost
         reducedCost[e] = Gcost[e];
     }
 
-
+    // Edit node labels
+    forall_nodes(v,G) {
+        gw.set_label(v, string("e = %d\npi = %d", excess[v], potential[v]));
+        gw.set_node_label_font(gw_font_type::roman_font, gw.get_width(v)/3);
+    }
 
     // Main loop
     while(!EXCESS.empty()) {
@@ -172,6 +178,12 @@ void visualize_ssp(GraphWin& gw) {
         node_array<int> distance(G);
         node_array<edge> pred(G);
         dijkstra_mod(G, s, reducedCost, Gcap, flow, distance, pred);
+
+        // No valid path found: Problem has no solution
+        if (pred[t] == nil) {
+            success = false;
+            break;
+        }
 
         gw.message("Shortest path found.");
         gw.save_all_attributes();
@@ -231,17 +243,26 @@ void visualize_ssp(GraphWin& gw) {
             reducedCost[e] = Gcost[e] - potential[G.source(e)] + potential[G.target(e)];
         }
 
-        // Adjust edge labels
+        // Adjust labels
         gw.message("Update flow, node potentials and reduced costs");
         forall_edges(e, G) {
             gw.set_label(e,string("red. cost = %d \n res. cap = %d \n flow = %d",reducedCost[e],Gcap[e] - flow[e],flow[e]));
+        }
+        forall_nodes(v,G) {
+            gw.set_label(v, string("e = %d\npi = %d", excess[v], potential[v]));
         }
         gw.redraw();
         leda_sleep(SLEEP_TIME);
     }
 
     // Visualize result
-    gw.message("Algorithm terminated.");
+    if (success) {
+        gw.message("Solution found. Click 'done' to finish.");
+
+    }
+    else {
+        gw.message("No path found. Problem has no solution. Click 'done' to finish.");
+    }
     gw.edit();
 }
 
@@ -291,6 +312,7 @@ int main(){
 
             forall_nodes(v, G) {
                 gw.set_color(v, ivory);
+                gw.set_label_type(v, data_label);
             }
 
             edge e;
