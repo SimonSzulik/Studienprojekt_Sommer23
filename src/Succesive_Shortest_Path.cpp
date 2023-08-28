@@ -312,6 +312,7 @@ int main(){
 
             forall_nodes(v, G) {
                 gw.set_color(v, ivory);
+                gw.set_label(v, string(""));
                 gw.set_label_type(v, data_label);
             }
 
