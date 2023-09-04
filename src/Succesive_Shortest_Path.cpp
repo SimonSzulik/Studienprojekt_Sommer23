@@ -79,11 +79,14 @@ void initialize_excess_demand(node_array<int>& ex, set<node>& E, set<node>& D) {
  * Modified version of Dijkstras Shortest Path Algorithm, that uses the residual network instead.
  */
 void dijkstra_mod(const graph& G, node s,
+                  node& t,
                   const edge_array<int>& cost,
                   const edge_array<int>& cap,
                   const edge_array<int>& flow,
+                  set<node>& DEMAND,
                   node_array<int>& dist,
-                  node_array<edge>& pred) {
+                  node_array<edge>& pred,
+                  list<node>& permanentlyLabeled) {
     node_pq<int> PQ(G);
 
     dist[s] = 0;
@@ -94,6 +97,13 @@ void dijkstra_mod(const graph& G, node s,
 
     while (!PQ.empty()) {
         node u = PQ.del_min();  // add u to S
+        permanentlyLabeled.append(u);
+
+        if (DEMAND.member(u)) {
+            t = u;
+            break;
+        }
+
         int du = dist[u];
         edge e;
         forall_inout_edges(e, u) {
@@ -126,7 +136,7 @@ void visualize_ssp(GraphWin& gw) {
     node v;
     edge e;
     node s;
-    node t;
+    node t = nil;
     edge_array<int> flow(G);
     edge_array<int> reducedCost(G);
     node_array<int> potential(G);
@@ -166,27 +176,27 @@ void visualize_ssp(GraphWin& gw) {
         leda_sleep(SLEEP_TIME);
 
         s = EXCESS.choose();
-        t = DEMAND.choose();
 
         gw.set_color(s, yellow);
-        gw.set_color(t, brown);
 
-        gw.message("Choose one excess and one demand node");
+        gw.message("Choose random excess node");
         leda_sleep(SLEEP_TIME);
 
-        gw.message("Finding shortest path in residual network");
+        gw.message("Finding shortest path to nearest demand node in residual network");
         node_array<int> distance(G);
         node_array<edge> pred(G);
-        dijkstra_mod(G, s, reducedCost, Gcap, flow, distance, pred);
+        list<node> permanentlyLabeled;
+        dijkstra_mod(G, s, t, reducedCost, Gcap, flow, DEMAND, distance, pred, permanentlyLabeled);
 
         // No valid path found: Problem has no solution
-        if (pred[t] == nil) {
+        if (t == nil) {
             success = false;
             break;
         }
 
         gw.message("Shortest path found.");
         gw.save_all_attributes();
+        gw.set_color(t, brown);
         v = t;
         int min_residual_capacity = MAXINT;
         while (v != s) {
@@ -210,8 +220,8 @@ void visualize_ssp(GraphWin& gw) {
         gw.restore_all_attributes();
 
         // Adjust node potentials
-        forall_nodes(v, G) {
-            potential[v] = potential[v] - distance[v];
+        forall(v, permanentlyLabeled) {
+            potential[v] = potential[v] - distance[v] + distance[t];
         }
 
         // Find amount of flow
@@ -257,6 +267,9 @@ void visualize_ssp(GraphWin& gw) {
 
     // Visualize result
     if (success) {
+        forall_nodes(v, G) {
+            gw.set_color(v, ivory);
+        }
         gw.message("Solution found. Click 'done' to finish.");
 
     }
